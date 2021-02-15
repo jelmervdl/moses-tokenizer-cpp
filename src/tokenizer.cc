@@ -144,62 +144,77 @@ Tokenizer::Tokenizer(const std::string &language, Options options)
 }
 
 std::string &Tokenizer::operator()(const std::string &text, std::string &out) const {
-	out.clear();
-	out.assign(text);
+	std::string tmp(text);
 
 	// De-duplicate spaces and clean ASCII junk
-	::DeduplicateSpace(out);
-	::RemoveASCIIJunk(out);
+	::DeduplicateSpace(tmp, out);
+	std::swap(tmp, out);
+	
+	::RemoveASCIIJunk(tmp, out);
+	std::swap(tmp, out);
 
 	// If protected patterns
 	// TODO: implement
 
 	// Strips heading and trailing spaces.
-	boost::algorithm::trim(out);
+	boost::algorithm::trim(tmp);
 
 	// Separate out all "other" special characters
-	pad_nonalpha_op_(out);
+	pad_nonalpha_op_(tmp, out);
+	std::swap(tmp, out);
 
 	// Aggressively splits dashes
-	if (options_ & aggressive)
-		::AggressiveHyphenSplit(out);
+	if (options_ & aggressive) {
+		::AggressiveHyphenSplit(tmp, out);
+		std::swap(tmp, out);
+	}
 
 	// Multi-dots stay together
-	::ReplaceMultidot(out);
+	::ReplaceMultidot(tmp, out);
+	std::swap(tmp, out);
 
 	// Separate out "," except if within numbers e.g. 5,300
-	::SeparateCommaInNumbers(out);
+	::SeparateCommaInNumbers(tmp, out);
+	std::swap(tmp, out);
 
 	// (Language-specific) apostrophe tokenization.
-	apostrophe_op_(out);
+	apostrophe_op_(tmp, out);
+	std::swap(tmp, out);
 
-  HandleNonbreakingPrefixes(out);
+  HandleNonbreakingPrefixes(tmp, out);
+  std::swap(tmp, out);
 
   // Cleans up extraneous spaces.
-  ::DeduplicateSpace(out);
-  boost::algorithm::trim(out);
+  ::DeduplicateSpace(tmp, out);
+  std::swap(tmp, out);
+  boost::algorithm::trim(tmp);
 
   // .' at end of sentence is missed
-  ::TrailingDotApostrophe(out);
+  ::TrailingDotApostrophe(tmp, out);
+  std::swap(tmp, out);
 
   // Restore protected
   // TODO: implement
 
   // Restore mutli-dot
-  ::RestoreMultidot(out);
+  ::RestoreMultidot(tmp, out);
+  std::swap(tmp, out);
 
   // Escape special chars
-  if (!(options_ & no_escape))
-  	::EscapeSpecialChars(out);
+  if (!(options_ & no_escape)) {
+  	::EscapeSpecialChars(tmp, out);
+  	std::swap(tmp, out);
+  }
 
+  std::swap(tmp, out);
 	return out;
 }
 
-void Tokenizer::HandleNonbreakingPrefixes(std::string &out) const {
 	// TODO: Go for a faster more efficient implementation
 	std::vector<std::string> tokens;
 	boost::algorithm::split(tokens, out, boost::is_space());
 
+void Tokenizer::HandleNonbreakingPrefixes(std::string &text, std::string &out) const {
 	out.clear();
 
 	std::smatch match;

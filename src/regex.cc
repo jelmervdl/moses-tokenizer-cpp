@@ -50,12 +50,10 @@ ReplaceOp::ReplaceOp(std::string const &pattern, std::string const &replacement)
   	//
 }
 
-std::string &ReplaceOp::operator()(std::string &text) const {
-	std::string out;
 	out.reserve(text.size() * 1.2);
 	std::regex_replace(std::back_inserter(out), text.begin(), text.end(), regex_, replacement_);
-	text.swap(out);
-	return text;
+void ReplaceOp::operator()(std::string &text, std::string &out) const {
+	out.clear();
 }
 
 SearchOp::SearchOp(std::string const &pattern)

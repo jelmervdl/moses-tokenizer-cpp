@@ -10,7 +10,7 @@ class ReplaceOp {
 public:
 	ReplaceOp(std::string const &pattern, std::string const &replacement, std::string const &original_pattern);
 	ReplaceOp(std::string const &pattern, std::string const &replacement);
-	std::string &operator()(std::string &text) const;
+	void operator()(std::string &text, std::string &out) const;
 private:
 	std::string pattern_;
 	std::regex regex_;
@@ -27,8 +27,8 @@ private:
 
 template <typename... T>
 struct ChainOp {
-	inline void operator()(std::string &) const {
-		// void
+	inline void operator()(std::string &text, std::string &out) const {
+		std::swap(text, out);
 	}
 };
 
@@ -39,9 +39,10 @@ struct ChainOp<T, R...> {
 		//
 	};
 	
-	inline void operator()(std::string &text) const {
-		op(text);
-		rest(text);
+	inline void operator()(std::string &text, std::string &out) const {
+		op(text, out);
+		std::swap(text, out);
+		rest(text, out);
 	}
 
 	T op;
@@ -63,18 +64,21 @@ struct LoopOp {
 		//
 	}
 
-	void operator()(std::string &out) const
+	void operator()(std::string &text, std::string &out) const
 	{
-		initial(out);
-		while (condition(out))
-			operation(out);
-		finalize(out);
+		initial(text, out);
+		std::swap(out, text);
+		while (condition(text)) {
+			operation(text, out);
+			std::swap(out, text);
+		}
+		finalize(text, out);
 	}
 };
 
 struct Noop {
-	void operator()(std::string &) const {
-		// do nothing!
+	void operator()(std::string &text, std::string &out) const {
+		std::swap(text, out);
 	}
 };
 
