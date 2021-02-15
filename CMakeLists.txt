@@ -13,7 +13,7 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif ()
 
-find_package(Boost 1.71 COMPONENTS program_options REQUIRED)
+find_package(Boost 1.71 COMPONENTS program_options regex REQUIRED)
 
 # compile executable into bin/
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
@@ -32,11 +32,6 @@ add_library(tokenizer_lib
     src/tokenizer.cc
     src/regex.cc
     src/nonbreaking_prefix_set.cc
-    data/perluniprops/IsN.txt.hex
-    data/perluniprops/IsAlpha.txt.hex
-    data/perluniprops/IsAlnum.txt.hex
-    data/perluniprops/IsLower.txt.hex
-    data/perluniprops/Lowercase_Letter.txt.hex
     data/nonbreaking_prefixes/nonbreaking_prefix.ca.hex
     data/nonbreaking_prefixes/nonbreaking_prefix.cs.hex
     data/nonbreaking_prefixes/nonbreaking_prefix.de.hex
@@ -66,10 +61,10 @@ add_library(tokenizer_lib
 
 if (PREPROCESS_PATH)
     add_subdirectory(${PREPROCESS_PATH} preprocess)
-    target_include_directories(tokenizer PUBLIC ${PREPROCESS_PATH})
+    target_include_directories(tokenizer_lib PUBLIC ${PREPROCESS_PATH})
 else ()
     add_subdirectory(${CMAKE_SOURCE_DIR}/preprocess)
-    target_include_directories(tokenizer PUBLIC ${CMAKE_SOURCE_DIR}/preprocess)
+    target_include_directories(tokenizer_lib PUBLIC ${CMAKE_SOURCE_DIR}/preprocess)
 endif ()
 
 find_program(RESOURCE_COMPILER xxd)
@@ -93,7 +88,7 @@ target_link_libraries(tokenizer_lib
 # define executables
 add_executable(tokenizer tokenizer_main.cc)
 target_link_libraries(tokenizer
-    tokenizer
+    tokenizer_lib
     ${Boost_LIBRARIES}
 )
 

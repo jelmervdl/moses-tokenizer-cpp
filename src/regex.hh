@@ -2,7 +2,7 @@
 #define PERL_REGEX
 
 #include <string>
-#include <regex>
+#include <boost/regex/icu.hpp>
 
 namespace moses { namespace tokenizer {
 
@@ -13,7 +13,7 @@ public:
 	void operator()(std::string &text, std::string &out) const;
 private:
 	std::string pattern_;
-	std::regex regex_;
+	boost::u32regex regex_;
 	std::string replacement_;
 };
 
@@ -22,7 +22,7 @@ public:
 	SearchOp(std::string const &pattern);
 	bool operator()(std::string const &text) const;
 private:
-	std::regex regex_;
+	boost::u32regex regex_;
 };
 
 template <typename... T>
@@ -99,8 +99,6 @@ template <typename Init, typename Cond, typename Op, typename Fin>
 LoopOp<Init, Cond, Op, Fin> Loop(Init initial, Cond condition, Op operation, Fin finalize) {
 	return LoopOp<Init, Cond, Op, Fin>(initial, condition, operation, finalize);
 }
-
-std::string FormatPerlRegex(std::string const &pattern);
 
 } } // enc namespace
 

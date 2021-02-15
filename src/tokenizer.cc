@@ -16,28 +16,28 @@ using moses::tokenizer::Chain;
 using moses::tokenizer::Loop;
 using moses::tokenizer::Noop;
 
-auto DeduplicateSpace = Replace("\\s+", " ");
+auto DeduplicateSpace = Replace("[\\s]+", " ");
 
 auto RemoveASCIIJunk = Replace("[\\x00-\\x1F]", "");
 
-auto PadNonAlphanumeric = Replace("([^\\p{IsAlnum}\\s\\.\\'\\`\\,\\-])", " $1 ");
+auto PadNonAlphanumeric = Replace("([^[:alnum:]\\s\\.'`,-])", " $1 ");
 
 auto FiSvPadNonAlphanumeric = Chain(
 	// in Finnish and Swedish, the colon can be used inside words as an apostrophe-like character:
 	// USA:n, 20:een, EU:ssa, USA:s, S:t
-	Replace("([^\\p{IsAlnum}\\s\\.\\:\\'\\`\\,\\-])", " $1 "),
+	Replace("([^[:alnum:]\\s\\.:'`,-])", " $1 "),
 	// if a colon is not immediately followed by lower-case characters, separate it out anyway
-	Replace("(:)(?=$|[^\\p{Ll}])", " $1 ")
+	Replace("(:)(?=$|[^[:Ll:]])", " $1 ")
 );
 
 auto CaPadNonAlphanumeric = Chain(
 	// in Catalan, the middle dot can be used inside words: il�lusio
-	Replace("([^\\p{IsAlnum}\\s\\.\\·\\'\\`\\,\\-])", " $1 "),
+	Replace("([^[:alnum:]\\s\\.·'`,-])", " $1 "),
 	// if a middot is not immediately followed by lower-case characters, separate it out anyway
-	Replace("(·)(?=$|[^\\p{Ll}])", " $1 ")
+	Replace("(·)(?=$|[^[:Ll:]])", " $1 ")
 );
 
-auto AggressiveHyphenSplit = Replace("([\\p{IsAlnum}])\\-(?=[\\p{IsAlnum}])", "$1 @-@ ");
+auto AggressiveHyphenSplit = Replace("([[:alnum:]])\\-(?=[[:alnum:]])", "$1 @-@ ");
 
 auto SeparateCommaInNumbers = Chain(
 	// separate out "," except if within numbers (5,300)
@@ -45,53 +45,51 @@ auto SeparateCommaInNumbers = Chain(
    // first application uses up B so rule can't see B,C
    // two-step version here may create extra spaces but these are removed later
    // will also space digit,letter or letter,digit forms (redundant with next section)
-	Replace("([^\\p{IsN}])[,]", "$1 , "),
-	Replace("[,]([^\\p{IsN}])", ", $1"),
+	Replace("([^[:Number:]])[,]", "$1 , "),
+	Replace("[,]([^[:Number:]])", ", $1"),
 	// Separate "," after a number if it's the end of a sentence
-	Replace("([\\p{IsN}])[,]$", "$1 , ")
+	Replace("([[:Number:]])[,]$", "$1 , ")
 );
 
 auto EnSpecificApostrophe = Chain(
 	// Split contractions right
-	Replace("([^\\p{IsAlpha}])[']([^\\p{IsAlpha}])", "$1 ' $2"),
-	Replace("([^\\p{IsAlpha}\\p{IsN}])[']([\\p{IsAlpha}])", "$1 ' $2"),
-	Replace("([\\p{IsAlpha}])[']([^\\p{IsAlpha}])", "$1 ' $2"),
-	Replace("([\\p{IsAlpha}])[']([\\p{IsAlpha}])", "$1 '$2"),
+	Replace("([^[:alpha:]])[']([^[:alpha:]])", "$1 ' $2"),
+	Replace("([^[:alpha:][:Number:]])[']([[:alpha:]])", "$1 ' $2"),
+	Replace("([[:alpha:]])[']([^[:alpha:]])", "$1 ' $2"),
+	Replace("([[:alpha:]])[']([[:alpha:]])", "$1 '$2"),
 	// Special case for "1990's"
-	Replace("([\\p{IsN}])[']([s])", "$1 '$2")
+	Replace("([[:Number:]])[']([s])", "$1 '$2")
 );
 
 auto FrItGaCaSpecificApostrophe = Chain(
 	// Split contractions left
-	Replace("([^\\p{IsAlpha}])[']([^\\p{IsAlpha}])", "$1 ' $2"),
-  Replace("([^\\p{IsAlpha}])[']([\\p{IsAlpha}])", "$1 ' $2"),
-  Replace("([\\p{IsAlpha}])[']([^\\p{IsAlpha}])", "$1 ' $2"),
-  Replace("([\\p{IsAlpha}])[']([\\p{IsAlpha}])", "$1' $2")
+	Replace("([^[:alpha:]])[']([^[:alpha:]])", "$1 ' $2"),
+  Replace("([^[:alpha:]])[']([[:alpha:]])", "$1 ' $2"),
+  Replace("([[:alpha:]])[']([^[:alpha:]])", "$1 ' $2"),
+  Replace("([[:alpha:]])[']([[:alpha:]])", "$1' $2")
 );
 
 auto SoSpecificApostrophe = Chain(
 	// Don't split glottals
-	Replace("([^\\p{IsAlpha}])[']([^\\p{IsAlpha}])", "$1 ' $2"),
-  Replace("([^\\p{IsAlpha}])[']([\\p{IsAlpha}])", "$1 ' $2"),
-  Replace("([\\p{IsAlpha}])[']([^\\p{IsAlpha}])", "$1 ' $2")
+	Replace("([^[:alpha:]])[']([^[:alpha:]])", "$1 ' $2"),
+  Replace("([^[:alpha:]])[']([[:alpha:]])", "$1 ' $2"),
+  Replace("([[:alpha:]])[']([^[:alpha:]])", "$1 ' $2")
 );
 
-auto NonSpecificApostrophe = Replace("\\'", " ' ");
+auto NonSpecificApostrophe = Replace("'", " ' ");
 
 auto TrailingDotApostrophe = Replace("\\.' ?$", " . ' ");
 
 auto EscapeSpecialChars = Chain(
-	Replace("\\&", "&amp;"),   // escape escape
+	Replace("&", "&amp;"),   // escape escape
 	Replace("\\|", "&#124;"),  // factor separator
-	Replace("\\<", "&lt;"),    // xml
-	Replace("\\>", "&gt;"),    // xml
-	Replace("\\'", "&apos;"),  // xml
-	Replace("\\\"", "&quot;"),  // xml
+	Replace("<", "&lt;"),    // xml
+	Replace(">", "&gt;"),    // xml
+	Replace("'", "&apos;"),  // xml
+	Replace("\"", "&quot;"),  // xml
 	Replace("\\[", "&#91;"),   // syntax non-terminal
 	Replace("\\]", "&#93;")    // syntax non-terminal
 );
-
-auto TOKEN_ENDS_WITH_PERIOD_REGEX = std::regex("^(\\S+)\\.$");
 
 auto ReplaceMultidot = Loop(
 	Replace("\\.([\\.]+)", " DOTMULTI$1"),
@@ -110,13 +108,84 @@ auto RestoreMultidot = Loop(
 	Replace("DOTMULTI", ".")
 );
 
-auto ContainsDot = Search("\\.");
+auto ContainsAlpha = Search("[[:alpha:]]");
 
-auto ContainsAlpha = Search("[\\p{IsAlpha}]");
+auto StartsLowerCase = Search("^[[:lower:]]");
 
-auto StartsLowerCase = Search("^[\\p{IsLower}]");
+bool StartsNumeric(std::string const &str) {
+	return str.size() > 0 && str[0] >= '0' && str[0] <= '9';
+}
 
-auto StartsNumeric = Search("^[0-9]");
+bool ContainsDot(std::string const &str) {
+	return str.find('.') != std::string::npos;
+}
+
+bool IsWhitespace(char chr) {
+	return chr == '\t' || chr == ' ';
+}
+
+bool TokenEndsWithPeriod(std::string const &str, std::string &prefix) {
+	if (str.size() < 2)
+		return false;
+
+	if (str[str.size() - 1] != '.' || IsWhitespace(str[str.size() - 2]))
+		return false;
+
+	prefix = str.substr(0, str.size() - 1);
+	return true;
+}
+
+class SplitIterator {
+public:
+	SplitIterator(std::string const &text, std::size_t offset = 0)
+	: text_(text),
+	  offset_(offset),
+	  end_pos_(text_.find(' ', offset_)) {
+		//
+	}
+
+	SplitIterator(SplitIterator const &other) = default;
+	
+	SplitIterator()
+	: text_(kEmpty),
+	  offset_(std::string::npos),
+	  end_pos_(std::string::npos) {
+		//
+	}
+
+	std::string const operator*() const {
+		return text_.substr(offset_, HasNext() ? end_pos_ - offset_ : std::string::npos);
+	}
+
+	bool operator!=(SplitIterator const &other) const {
+		return offset_ != other.offset_;
+	}
+
+	SplitIterator& operator++() {
+		offset_ = end_pos_ == std::string::npos ? std::string::npos : end_pos_ + 1;
+		end_pos_ = text_.find(' ', offset_);
+		return *this;
+	}
+
+	SplitIterator operator+(int amount) {
+		auto it = *this;
+		while (amount-- > 0)
+			++it;
+		return it;
+	}
+
+	bool HasNext() const {
+		return end_pos_ != std::string::npos;
+	}
+	
+// private:
+	static const std::string kEmpty;
+	std::string const &text_;
+	std::size_t offset_;
+	std::size_t end_pos_;
+};
+
+std::string const SplitIterator::kEmpty = "";
 
 } // anonymous namespace
 
@@ -210,32 +279,35 @@ std::string &Tokenizer::operator()(const std::string &text, std::string &out) co
 	return out;
 }
 
-	// TODO: Go for a faster more efficient implementation
-	std::vector<std::string> tokens;
-	boost::algorithm::split(tokens, out, boost::is_space());
-
 void Tokenizer::HandleNonbreakingPrefixes(std::string &text, std::string &out) const {
 	out.clear();
+	std::string prefix;
+	for (auto it = SplitIterator(text); it != SplitIterator(); ++it) {
+		bool split = false;
 
-	std::smatch match;
-	for (std::size_t i = 0; i < tokens.size(); ++i) {
-		if (std::regex_match(tokens[i], match, ::TOKEN_ENDS_WITH_PERIOD_REGEX)) {
+		if (::TokenEndsWithPeriod(*it, prefix)) {
 			// Split last words independently as they are unlikely to be non-breaking prefixes
-			if (i == tokens.size() - 1) {
-				tokens[i] = match.str(1) + " .";
-			} else if (::ContainsDot(match.str(1)) && ::ContainsAlpha(match.str(1))) {
+			if (!it.HasNext()) {
+				split = true;
+			} else if (::ContainsDot(prefix) && ::ContainsAlpha(prefix)) {
 				// no change
-			} else if (prefix_set_.IsNonbreakingPrefix(match.str(1))) {
+			} else if (prefix_set_.IsNonbreakingPrefix(prefix)) {
 				// no change
-			} else if (::StartsLowerCase(tokens[i + 1])) {
+			} else if (::StartsLowerCase(*(it+1))) {
 				// no change
-			} else if (::StartsNumeric(tokens[i + 1]) && prefix_set_.IsNumericNonbreakingPrefix(match.str(1))) {
+			} else if (::StartsNumeric(*(it+1)) && prefix_set_.IsNumericNonbreakingPrefix(prefix)) {
 				// no change
 			} else {
-				tokens[i] = match.str(1) + " .";
+				split = true;
 			}
 		}
-		out.append(tokens[i]);
+
+		if (split) {
+			out.append(prefix);
+			out.append(" .");
+		} else {
+			out.append(*it);
+		}
 		out.append(" ");
 	}
 }

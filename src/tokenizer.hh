@@ -17,13 +17,13 @@ class Tokenizer {
 		Tokenizer(const std::string &language, Options options = static_cast<Options>(0));
 		std::string &operator()(const std::string &text, std::string &out) const;
 	private:
-		void HandleNonbreakingPrefixes(std::string &out) const;
+		void HandleNonbreakingPrefixes(std::string &text, std::string &out) const;
 
 		Options options_;
 		std::string language_;
 		NonbreakingPrefixSet const &prefix_set_;
-		std::function<void(std::string&)> pad_nonalpha_op_;
-		std::function<void(std::string&)> apostrophe_op_;
+		std::function<void(std::string&, std::string&)> pad_nonalpha_op_;
+		std::function<void(std::string&, std::string&)> apostrophe_op_;
 };
 
 constexpr Tokenizer::Options operator|(Tokenizer::Options x, Tokenizer::Options y) {
