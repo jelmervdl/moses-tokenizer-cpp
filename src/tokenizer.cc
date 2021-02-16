@@ -46,7 +46,7 @@ auto SeparateCommaInNumbers = Chain(
    // two-step version here may create extra spaces but these are removed later
    // will also space digit,letter or letter,digit forms (redundant with next section)
 	Replace("([^[:Number:]])[,]", "$1 , "),
-	Replace("[,]([^[:Number:]])", ", $1"),
+	Replace("[,]([^[:Number:]])", " , $1"),
 	// Separate "," after a number if it's the end of a sentence
 	Replace("([[:Number:]])[,]$", "$1 , ")
 );
