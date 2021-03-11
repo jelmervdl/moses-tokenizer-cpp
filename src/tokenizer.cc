@@ -7,6 +7,8 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
+#include <unicode/utypes.h>
+
 
 namespace {
 
@@ -15,6 +17,8 @@ using moses::tokenizer::Replace;
 using moses::tokenizer::Chain;
 using moses::tokenizer::Loop;
 using moses::tokenizer::Noop;
+using moses::tokenizer::string_type;
+using moses::tokenizer::char_type;
 
 auto DeduplicateSpace = Replace("[\\s]+", " ");
 
@@ -112,49 +116,62 @@ auto ContainsAlpha = Search("[[:alpha:]]");
 
 auto StartsLowerCase = Search("^[[:lower:]]");
 
-bool StartsNumeric(std::string const &str) {
+bool StartsNumeric(string_type const &str) {
 	return str.size() > 0 && str[0] >= '0' && str[0] <= '9';
 }
 
-bool ContainsDot(std::string const &str) {
-	return str.find('.') != std::string::npos;
+bool ContainsDot(string_type const &str) {
+	return std::find(str.begin(), str.end(), '.') != str.end();
 }
 
-bool IsWhitespace(char chr) {
+bool IsWhitespace(char_type const chr) {
 	return chr == '\t' || chr == ' ';
 }
 
-bool TokenEndsWithPeriod(std::string const &str, std::string &prefix) {
+bool TokenEndsWithPeriod(string_type const &str, string_type &prefix) {
 	if (str.size() < 2)
 		return false;
 
 	if (str[str.size() - 1] != '.' || IsWhitespace(str[str.size() - 2]))
 		return false;
 
-	prefix = str.substr(0, str.size() - 1);
+	prefix.clear();
+	prefix.resize(str.size() - 1);
+	std::copy(str.begin(), str.end() - 1, prefix.begin());
 	return true;
+}
+
+void Trim(string_type &vec) {
+	auto begin = vec.begin();
+	auto end = vec.end();
+	
+	while (begin != end && IsWhitespace(*begin))
+		++begin;
+
+	while (end != begin && IsWhitespace(*(end-1)))
+		--end;
+
+	// Should be safe, we're never "trimming" something to something longer
+	std::copy(begin, end, vec.begin());
+	vec.resize(std::distance(begin, end));
 }
 
 class SplitIterator {
 public:
-	SplitIterator(std::string const &text, std::size_t offset = 0)
-	: text_(text),
-	  offset_(offset),
-	  end_pos_(text_.find(' ', offset_)) {
+	SplitIterator(string_type::const_iterator offset, string_type::const_iterator end)
+	: offset_(offset),
+	  end_(end),
+	  end_pos_(std::find_if(offset_, end_, IsWhitespace)) {
 		//
 	}
 
 	SplitIterator(SplitIterator const &other) = default;
 	
-	SplitIterator()
-	: text_(kEmpty),
-	  offset_(std::string::npos),
-	  end_pos_(std::string::npos) {
-		//
-	}
-
-	std::string const operator*() const {
-		return text_.substr(offset_, HasNext() ? end_pos_ - offset_ : std::string::npos);
+	string_type const operator*() const {
+		string_type word;
+		word.resize(std::distance(offset_, end_pos_));
+		std::copy(offset_, end_pos_, word.begin());
+		return word;
 	}
 
 	bool operator!=(SplitIterator const &other) const {
@@ -162,8 +179,8 @@ public:
 	}
 
 	SplitIterator& operator++() {
-		offset_ = end_pos_ == std::string::npos ? std::string::npos : end_pos_ + 1;
-		end_pos_ = text_.find(' ', offset_);
+		offset_ = end_pos_ == end_ ? end_ : end_pos_ + 1;
+		end_pos_ = std::find_if(offset_, end_, IsWhitespace);
 		return *this;
 	}
 
@@ -175,17 +192,14 @@ public:
 	}
 
 	bool HasNext() const {
-		return end_pos_ != std::string::npos;
+		return end_pos_ != end_;
 	}
 	
-// private:
-	static const std::string kEmpty;
-	std::string const &text_;
-	std::size_t offset_;
-	std::size_t end_pos_;
+private:
+	string_type::const_iterator offset_;
+	string_type::const_iterator end_;
+	string_type::const_iterator end_pos_;
 };
-
-std::string const SplitIterator::kEmpty = "";
 
 } // anonymous namespace
 
@@ -213,76 +227,77 @@ Tokenizer::Tokenizer(const std::string &language, Options options)
 }
 
 std::string &Tokenizer::operator()(const std::string &text, std::string &out) const {
-	std::string tmp(text);
+	string_type tmp1, tmp2;
+	StrToUChar(text, tmp1);
 
 	// De-duplicate spaces and clean ASCII junk
-	::DeduplicateSpace(tmp, out);
-	std::swap(tmp, out);
+	::DeduplicateSpace(tmp1, tmp2);
+	std::swap(tmp1, tmp2);
 	
-	::RemoveASCIIJunk(tmp, out);
-	std::swap(tmp, out);
+	::RemoveASCIIJunk(tmp1, tmp2);
+	std::swap(tmp1, tmp2);
 
 	// If protected patterns
 	// TODO: implement
 
 	// Strips heading and trailing spaces.
-	boost::algorithm::trim(tmp);
+	::Trim(tmp1);
 
 	// Separate out all "other" special characters
-	pad_nonalpha_op_(tmp, out);
-	std::swap(tmp, out);
+	pad_nonalpha_op_(tmp1, tmp2);
+	std::swap(tmp1, tmp2);
 
 	// Aggressively splits dashes
 	if (options_ & aggressive) {
-		::AggressiveHyphenSplit(tmp, out);
-		std::swap(tmp, out);
+		::AggressiveHyphenSplit(tmp1, tmp2);
+		std::swap(tmp1, tmp2);
 	}
 
 	// Multi-dots stay together
-	::ReplaceMultidot(tmp, out);
-	std::swap(tmp, out);
+	::ReplaceMultidot(tmp1, tmp2);
+	std::swap(tmp1, tmp2);
 
 	// Separate out "," except if within numbers e.g. 5,300
-	::SeparateCommaInNumbers(tmp, out);
-	std::swap(tmp, out);
+	::SeparateCommaInNumbers(tmp1, tmp2);
+	std::swap(tmp1, tmp2);
 
 	// (Language-specific) apostrophe tokenization.
-	apostrophe_op_(tmp, out);
-	std::swap(tmp, out);
+	apostrophe_op_(tmp1, tmp2);
+	std::swap(tmp1, tmp2);
 
-  HandleNonbreakingPrefixes(tmp, out);
-  std::swap(tmp, out);
+  HandleNonbreakingPrefixes(tmp1, tmp2);
+	std::swap(tmp1, tmp2);
 
   // Cleans up extraneous spaces.
-  ::DeduplicateSpace(tmp, out);
-  std::swap(tmp, out);
-  boost::algorithm::trim(tmp);
+  ::DeduplicateSpace(tmp1, tmp2);
+	std::swap(tmp1, tmp2);
+  ::Trim(tmp1);
 
   // .' at end of sentence is missed
-  ::TrailingDotApostrophe(tmp, out);
-  std::swap(tmp, out);
+  ::TrailingDotApostrophe(tmp1, tmp2);
+	std::swap(tmp1, tmp2);
 
   // Restore protected
   // TODO: implement
 
   // Restore mutli-dot
-  ::RestoreMultidot(tmp, out);
-  std::swap(tmp, out);
+  ::RestoreMultidot(tmp1, tmp2);
+	std::swap(tmp1, tmp2);
 
   // Escape special chars
   if (!(options_ & no_escape)) {
-  	::EscapeSpecialChars(tmp, out);
-  	std::swap(tmp, out);
+  	::EscapeSpecialChars(tmp1, tmp2);
+		std::swap(tmp1, tmp2);
   }
 
-  std::swap(tmp, out);
+  UCharToStr(tmp1, out);
 	return out;
 }
 
-void Tokenizer::HandleNonbreakingPrefixes(std::string &text, std::string &out) const {
+void Tokenizer::HandleNonbreakingPrefixes(string_type &text, string_type &out) const {
 	out.clear();
-	std::string prefix;
-	for (auto it = SplitIterator(text); it != SplitIterator(); ++it) {
+	string_type prefix;
+	for (auto it = SplitIterator(text.begin(), text.end()); it != SplitIterator(text.end(), text.end()); ++it) {
 		bool split = false;
 
 		if (::TokenEndsWithPeriod(*it, prefix)) {
@@ -303,12 +318,14 @@ void Tokenizer::HandleNonbreakingPrefixes(std::string &text, std::string &out) c
 		}
 
 		if (split) {
-			out.append(prefix);
-			out.append(" .");
+			out.insert(out.end(), prefix.begin(), prefix.end());
+			out.push_back(' ');
+			out.push_back('.');
 		} else {
-			out.append(*it);
+			string_type word(*it);
+			out.insert(out.end(), word.begin(), word.end());
 		}
-		out.append(" ");
+		out.push_back(' ');
 	}
 }
 

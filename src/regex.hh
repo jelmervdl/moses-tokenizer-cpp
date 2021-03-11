@@ -3,14 +3,25 @@
 
 #include <string>
 #include <boost/regex/icu.hpp>
+#include <boost/container_hash/hash.hpp>
 
 namespace moses { namespace tokenizer {
+
+typedef UChar32 char_type;
+
+typedef std::vector<char_type> string_type;
+
+void StrToUChar(std::string const &str, string_type &vec);
+
+void UCharToStr(string_type const &vec, std::string &str);
+
+string_type StrToUChar(std::string const &str); // handy
 
 class ReplaceOp {
 public:
 	ReplaceOp(std::string const &pattern, std::string const &replacement, std::string const &original_pattern);
 	ReplaceOp(std::string const &pattern, std::string const &replacement);
-	void operator()(std::string &text, std::string &out) const;
+	void operator()(string_type &text, string_type &out) const;
 private:
 	std::string pattern_;
 	boost::u32regex regex_;
@@ -20,14 +31,14 @@ private:
 class SearchOp {
 public:
 	SearchOp(std::string const &pattern);
-	bool operator()(std::string const &text) const;
+	bool operator()(string_type const &text) const;
 private:
 	boost::u32regex regex_;
 };
 
 template <typename... T>
 struct ChainOp {
-	inline void operator()(std::string &text, std::string &out) const {
+	inline void operator()(string_type &text, string_type &out) const {
 		std::swap(text, out);
 	}
 };
@@ -39,7 +50,7 @@ struct ChainOp<T, R...> {
 		//
 	};
 	
-	inline void operator()(std::string &text, std::string &out) const {
+	inline void operator()(string_type &text, string_type &out) const {
 		op(text, out);
 		std::swap(text, out);
 		rest(text, out);
@@ -64,7 +75,7 @@ struct LoopOp {
 		//
 	}
 
-	void operator()(std::string &text, std::string &out) const
+	void operator()(string_type &text, string_type &out) const
 	{
 		initial(text, out);
 		std::swap(out, text);
@@ -77,7 +88,7 @@ struct LoopOp {
 };
 
 struct Noop {
-	void operator()(std::string &text, std::string &out) const {
+	void operator()(string_type &text, string_type &out) const {
 		std::swap(text, out);
 	}
 };
@@ -101,5 +112,18 @@ LoopOp<Init, Cond, Op, Fin> Loop(Init initial, Cond condition, Op operation, Fin
 }
 
 } } // enc namespace
+
+namespace std {
+
+template<> struct hash<moses::tokenizer::string_type> {
+	std::size_t operator()(moses::tokenizer::string_type const &str) const {
+		std::size_t seed = 0;
+		for (auto chr : str)
+			boost::hash_combine(seed, chr);
+		return seed;
+	}
+};
+
+}
 
 #endif

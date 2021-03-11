@@ -1,4 +1,5 @@
 #include "nonbreaking_prefix_set.hh"
+#include "regex.hh"
 #include <unordered_map>
 #include <sstream>
 
@@ -18,9 +19,9 @@ NonbreakingPrefixSet::NonbreakingPrefixSet(std::string const &data) {
 			continue;
 
 		if (std::regex_match(line, match, ONLY_NUMERIC_REGEX))
-			numeric_prefixes.insert(match.str(1));
+			numeric_prefixes.insert(StrToUChar(match.str(1)));
 		else
-			text_prefixes.insert(line);
+			text_prefixes.insert(StrToUChar(line));
 	}
 }
 
@@ -187,11 +188,11 @@ std::unordered_map<std::string, NonbreakingPrefixSet> NONBREAKING_PREFIX_SETS{
 
 namespace moses { namespace tokenizer {
 
-bool NonbreakingPrefixSet::IsNonbreakingPrefix(std::string const &token) const {
+bool NonbreakingPrefixSet::IsNonbreakingPrefix(string_type const &token) const {
 	return text_prefixes.find(token) != text_prefixes.end();
 }
 
-bool NonbreakingPrefixSet::IsNumericNonbreakingPrefix(std::string const &token) const {
+bool NonbreakingPrefixSet::IsNumericNonbreakingPrefix(string_type const &token) const {
 	return numeric_prefixes.find(token) != numeric_prefixes.end();
 }
 
