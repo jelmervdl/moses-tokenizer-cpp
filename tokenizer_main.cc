@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include "src/tokenizer.hh"
+#include <boost/regex/icu.hpp>
 
 using moses::tokenizer::Tokenizer;
 
@@ -31,6 +32,13 @@ int ProcessFiles(Tokenizer const &tokenizer, int argc, char *argv[], std::ostrea
 
 	return 0;
 }
+
+int TestExpression(std::string const &pattern, std::string const &replacement) {
+	auto regex = boost::make_u32regex(pattern, boost::regex::perl);
+	std::string text;
+	while (std::getline(std::cin, text))
+		std::cout << boost::u32regex_replace(text, regex, replacement) << std::endl;
+	return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -94,6 +102,12 @@ int main(int argc, char *argv[]) {
 			output = argv[++i];
 		}
 
+		else if (arg == "--test"){
+			if (i + 2 >= argc)
+				return usage(argv[0]);
+			
+			return TestExpression(argv[i+1], argv[i+2]);
+		}
 
 		else if (arg.size() > 1 && arg.substr(0, 1) == "-")
 			return usage(argv[0]);

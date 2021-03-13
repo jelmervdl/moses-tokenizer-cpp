@@ -29,6 +29,12 @@ string_type StrToUChar(std::string const &str) {
 	return vec;
 }
 
+std::ostream &operator <<(std::ostream &out, string_type const &vec) {
+	std::string str;
+	UCharToStr(vec, str);
+	return out << str;
+}
+
 ReplaceOp::ReplaceOp(std::string const &pattern, std::string const &replacement, std::string const &original_pattern)
 : pattern_(original_pattern),
   regex_(boost::make_u32regex(pattern, boost::regex::perl)),
