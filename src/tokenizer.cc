@@ -20,28 +20,28 @@ using moses::tokenizer::Noop;
 using moses::tokenizer::string_type;
 using moses::tokenizer::char_type;
 
-auto DeduplicateSpace = Replace("[\\s]+", " ");
+auto DeduplicateSpace = Replace(R"([\s]+)", " ");
 
-auto RemoveASCIIJunk = Replace("[\\x00-\\x1F]", "");
+auto RemoveASCIIJunk = Replace(R"([\x00-\x1F])", "");
 
-auto PadNonAlphanumeric = Replace("([^[:alnum:]\\s\\.'`,-])", " $1 ");
+auto PadNonAlphanumeric = Replace(R"(([^[:alnum:]\s\.'`,-]))", " $1 ");
 
 auto FiSvPadNonAlphanumeric = Chain(
 	// in Finnish and Swedish, the colon can be used inside words as an apostrophe-like character:
 	// USA:n, 20:een, EU:ssa, USA:s, S:t
-	Replace("([^[:alnum:]\\s\\.:'`,-])", " $1 "),
+	Replace(R"(([^[:alnum:]\s\.:'`,-]))", " $1 "),
 	// if a colon is not immediately followed by lower-case characters, separate it out anyway
-	Replace("(:)(?=$|[^[:Ll:]])", " $1 ")
+	Replace(R"((:)(?=$|[^[:Ll:]]))", " $1 ")
 );
 
 auto CaPadNonAlphanumeric = Chain(
 	// in Catalan, the middle dot can be used inside words: il�lusio
-	Replace("([^[:alnum:]\\s\\.·'`,-])", " $1 "),
+	Replace(R"(([^[:alnum:]\s\.·'`,-]))", " $1 "),
 	// if a middot is not immediately followed by lower-case characters, separate it out anyway
-	Replace("(·)(?=$|[^[:Ll:]])", " $1 ")
+	Replace(R"((·)(?=$|[^[:Ll:]]))", " $1 ")
 );
 
-auto AggressiveHyphenSplit = Replace("([[:alnum:]])\\-(?=[[:alnum:]])", "$1 @-@ ");
+auto AggressiveHyphenSplit = Replace(R"(([[:alnum:]])\-(?=[[:alnum:]]))", "$1 @-@ ");
 
 auto SeparateCommaInNumbers = Chain(
 	// separate out "," except if within numbers (5,300)
