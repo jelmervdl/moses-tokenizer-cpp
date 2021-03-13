@@ -12,29 +12,32 @@ int usage(char *progname) {
 	return 1;
 }
 
-void process(Tokenizer const &tokenizer, std::istream &in, std::ostream &out) {
+void ProcessStream(Tokenizer const &tokenizer, std::istream &in, std::ostream &out) {
 	std::string text, tokenized;
 	while (std::getline(in, text))
 		out << tokenizer(text, tokenized) << std::endl;
 }
 
-int process_files(Tokenizer const &tokenizer, int argc, char *argv[], std::ostream &out) {
+int ProcessFiles(Tokenizer const &tokenizer, int argc, char *argv[], std::ostream &out) {
 	int i = 0;
 	do {
 			if (i == argc || argv[i] == std::string("-"))
-				process(tokenizer, std::cin, out);
+				ProcessStream(tokenizer, std::cin, out);
 			else {
 				std::ifstream in(argv[i]);
-				process(tokenizer, in, out);
+				ProcessStream(tokenizer, in, out);
 			}
 		} while (++i < argc);
+
+	return 0;
+}
 }
 
 int main(int argc, char *argv[]) {
 	std::string language("en");
 	std::string output("-");
 	int filename_i = argc;
-	Tokenizer::Options options;
+	Tokenizer::Options options(Tokenizer::Options::none);
 
 	for (int i = 1; i < argc; ++i) {
 		std::string arg(argv[i]);
@@ -60,7 +63,7 @@ int main(int argc, char *argv[]) {
 			continue;
 
 		else if (arg == "-a")
-			options |= Tokenizer::aggressive;
+			options |= Tokenizer::Options::aggressive;
 
 		else if (arg == "-time") // Timing: not implemented, just use `/usr/bin/time`
 			continue;
@@ -82,10 +85,15 @@ int main(int argc, char *argv[]) {
 		}
 
 		else if (arg == "-no-escape")
-			options |= Tokenizer::no_escape;
+			options |= Tokenizer::Options::no_escape;
+		
+		else if (arg == "-o") {
+			if (i + 1 == argc)
+				return usage(argv[0]);
 
-		else if (arg == "-o")
 			output = argv[++i];
+		}
+
 
 		else if (arg.size() > 1 && arg.substr(0, 1) == "-")
 			return usage(argv[0]);
@@ -99,9 +107,9 @@ int main(int argc, char *argv[]) {
 	Tokenizer tokenizer(language, options);
 
 	if (output.empty() || output == "-") {
-		return process_files(tokenizer, argc - filename_i, argv + filename_i, std::cout);
+		return ProcessFiles(tokenizer, argc - filename_i, argv + filename_i, std::cout);
 	} else {
 		std::ofstream out(output);
-		return process_files(tokenizer, argc - filename_i, argv + filename_i, out);
+		return ProcessFiles(tokenizer, argc - filename_i, argv + filename_i, out);
 	}
 }

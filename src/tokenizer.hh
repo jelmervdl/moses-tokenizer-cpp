@@ -10,9 +10,10 @@ namespace moses { namespace tokenizer {
 
 class Tokenizer {
 	public:
-		enum Options {
-			aggressive = 1,
-			no_escape = 2
+		enum class Options : uint32_t {
+			none       = 0,
+			aggressive = (1 << 0),
+			no_escape  = (1 << 1)
 		};
 
 		Tokenizer(const std::string &language, Options options = static_cast<Options>(0));
@@ -28,7 +29,11 @@ class Tokenizer {
 };
 
 constexpr Tokenizer::Options operator|(Tokenizer::Options x, Tokenizer::Options y) {
-	return static_cast<Tokenizer::Options>(static_cast<unsigned int>(x) | static_cast<unsigned int>(y));
+	return static_cast<Tokenizer::Options>(static_cast<uint32_t>(x) | static_cast<uint32_t>(y));
+}
+
+constexpr Tokenizer::Options operator&(Tokenizer::Options x, Tokenizer::Options y) {
+	return static_cast<Tokenizer::Options>(static_cast<uint32_t>(x) & static_cast<uint32_t>(y));
 }
 
 inline Tokenizer::Options& operator|=(Tokenizer::Options& x, Tokenizer::Options y) {

@@ -248,7 +248,7 @@ std::string &Tokenizer::operator()(const std::string &text, std::string &out) co
 	std::swap(tmp1, tmp2);
 
 	// Aggressively splits dashes
-	if (options_ & aggressive) {
+	if ((options_ & Options::aggressive) == Options::aggressive) {
 		::AggressiveHyphenSplit(tmp1, tmp2);
 		std::swap(tmp1, tmp2);
 	}
@@ -285,7 +285,7 @@ std::string &Tokenizer::operator()(const std::string &text, std::string &out) co
 	std::swap(tmp1, tmp2);
 
   // Escape special chars
-  if (!(options_ & no_escape)) {
+  if ((options_ & Options::no_escape) == Options::none) {
   	::EscapeSpecialChars(tmp1, tmp2);
 		std::swap(tmp1, tmp2);
   }
